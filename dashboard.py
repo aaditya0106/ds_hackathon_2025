@@ -9,6 +9,8 @@ from get_apt_suggestions import get_markers, get_apartments
 st.set_page_config(layout="wide")
 st.sidebar.header("Filters")
 
+price_range = st.sidebar.slider("Price Range ($):", min_value=500, max_value=1800, value=(500, 1500), step=50)
+
 living_area = st.sidebar.slider("Living Area (sq ft):", min_value=100, max_value=2500, value=(100, 2500), step=50)
 
 bedrooms = st.sidebar.multiselect("Number of Bedrooms:", options=[1, 2, 3, 4], default=[1, 2, 3])
@@ -16,8 +18,6 @@ bedrooms = st.sidebar.multiselect("Number of Bedrooms:", options=[1, 2, 3, 4], d
 bathrooms = st.sidebar.multiselect("Number of Bathrooms:", options=[1, 2, 3, 4], default=[1, 2, 3])
 
 commute_budget = st.sidebar.slider("Commute Budget ($):", min_value=0, max_value=800, value=500, step=50)
-
-price_range = st.sidebar.slider("Price Range ($):", min_value=500, max_value=1800, value=(500, 1500), step=50)
 
 primary_location = st.sidebar.text_input("Primary Location Address:", "440 Terry Ave N, Seattle, WA 98109")
 
