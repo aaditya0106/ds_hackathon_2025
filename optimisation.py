@@ -40,7 +40,7 @@ def get_optimised_model(base_data, min_price,
 
     x['total_commute_cost_tranist'] = (((x['total_commute_cost_tranist'] / 22) * second_loc_freq * (1.5) + x[
         'total_commute_cost_tranist'] / 22) * (5 - second_loc_freq)) * 22
-
+    x = x[x['price']>=min_price]
     scaler = MinMaxScaler()
 
     # Scale the numerical columns
@@ -130,6 +130,7 @@ def get_optimised_model(base_data, min_price,
             return sum(model.x[i] * rent[i] for i in model.Apartments) >= min_price
 
         model.Rent = Constraint(rule=rent_constraint)
+        # model.Rent_min = Constraint(rule=rent_constraint_min)
 
         # Solve the model
         solver = SolverFactory('cbc')  # Use 'glpk', 'cbc', or another solver available
