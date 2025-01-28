@@ -18,10 +18,10 @@ def get_optimised_model(base_data, min_price,
                         commute_budget,
                         num_beds,
                         num_baths,
-                        second_loc_freq=2,
-                        walk_dist=1,
-                        commute_time_limit=30,
-                        commute_type='vehicle'):
+                        second_loc_freq,
+                        walk_dist,
+                        commute_time_limit,
+                        commute_type):
     print(".....", max_price)
     x = base_data[(base_data.bedrooms.isin(num_beds)) & (base_data.bathrooms.isin(num_baths))][
         (base_data.livingArea >= min_area) & (base_data.livingArea <= max_area)]
@@ -41,6 +41,9 @@ def get_optimised_model(base_data, min_price,
     x['total_commute_cost_tranist'] = (((x['total_commute_cost_tranist'] / 22) * second_loc_freq * (1.5) + x[
         'total_commute_cost_tranist'] / 22) * (5 - second_loc_freq)) * 22
     x = x[x['price']>=min_price]
+
+    if(len(x)==0):
+        return 0
     scaler = MinMaxScaler()
 
     # Scale the numerical columns

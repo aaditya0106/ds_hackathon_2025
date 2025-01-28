@@ -1,50 +1,36 @@
 import streamlit as st
-from streamlit_searchbox import st_searchbox
 from streamlit_folium import st_folium
 from PIL import Image
+import plotly.express as px
 import requests
 from io import BytesIO
-from utils import get_autocomplete_suggestions
+from utils import get_nearest_place
 from get_apt_suggestions import get_markers, get_apartments
+import pandas as pd
 st.set_page_config(layout="wide")
 st.sidebar.header("Filters")
 
 price_range = st.sidebar.slider("Price Range ($):", min_value=500, max_value=1800, value=(500, 1500), step=50)
-
 living_area = st.sidebar.slider("Living Area (sq ft):", min_value=100, max_value=2500, value=(100, 2500), step=50)
-
 bedrooms = st.sidebar.multiselect("Number of Bedrooms:", options=[1, 2, 3, 4], default=[1, 2, 3])
-
 bathrooms = st.sidebar.multiselect("Number of Bathrooms:", options=[1, 2, 3, 4], default=[1, 2, 3])
-
 commute_budget = st.sidebar.slider("Commute Budget ($):", min_value=0, max_value=800, value=500, step=50)
-
 primary_location = st.sidebar.text_input("Primary Location Address:", "440 Terry Ave N, Seattle, WA 98109")
-
 primary_visit_days = st.sidebar.multiselect(
     "Primary Location Visit Days:", options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 )
-
 secondary_location = st.sidebar.text_input("Secondary Location Address:", "45th Street Plaza")
-
 secondary_visit_days = st.sidebar.multiselect(
     "Secondary Location Visit Days:", options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     default=["Wednesday", "Thursday"]
 )
-
 commute_time = st.sidebar.slider("Commute Time (minutes)(home to primary location):", min_value=0, max_value=120, value=30, step=1)
-
 walking_dist = st.sidebar.slider("Walking DIstance (miles)(home to primary location):", min_value=0.0, max_value=3.0, value=1.0, step=0.1)
-
-transport_mode = st.sidebar.radio(
-    "Mode of transportation:",
-    ("Transit", "Vehicle"), index = 1
-)
+transport_mode = st.sidebar.radio("Mode of transportation:", ("Transit", "Vehicle"), index = 1)
 
 ######################## apt suggestions ########################
-st.title("Suggested Apartments")
-col1, col2 = st.columns(2)
+st.title("RentWise - Smarter and optimized rental decisions")
 
 card_css = """
 <style>
@@ -105,145 +91,174 @@ st.markdown(
 
 @st.dialog("Apartment Details")
 def show_apartment_details(apt):
-    # Load and resize image (imgSrc -> your image URL field)
     if apt.get("imgSrc"):
         img = Image.open(BytesIO(requests.get(apt["imgSrc"]).content))
-        img = img.resize((660, 400))
+        img = img.resize((810, 400))
         st.image(img)
 
-    # Title / hyperlink to listing
-    # buildingName or some custom name field
     apt_name = apt.get("buildingName") or "Apartment"
     listing_url = apt.get("url") or "#"
     st.markdown(
         f"""
-            <a href="https://zillow.com{listing_url}" target="_blank" class="dialog-link">{apt_name} 🔗</a>
+            <h1><a href="https://zillow.com{listing_url}" target="_blank" 
+                style="text-decoration: none; color: black;"> {apt_name} 🔗
+            </a></h1>
         """,
         unsafe_allow_html=True,
     )
-
-    # Basic details
     address = apt.get("streetAddress") or apt.get("address") or "N/A"
-    price = apt.get("price") or "N/A"
     st.write(f"**Address:** {address}")
-    st.write(f"**Price:** {price}")
 
-    # Beds / Baths
-    beds = apt.get("bedrooms") or apt.get("beds") or "N/A"
-    baths = apt.get("bathrooms") or "N/A"
-    st.write(f"**Bedrooms/Bathrooms:** {beds} / {baths}")
+    c1,c2 = st.columns(2)
+    with c1:
+        price = int(apt["price"])
+        st.write(f"**Price:** ${price}")
 
-    # Additional property details
-    #year_built = apt.get("yearBuilt") or "N/A"
-    living_area = apt.get("livingArea") or "N/A"
-    prop_type = apt.get("propertyTypeDimension") or "N/A"
-    #st.write(f"**Year Built:** {year_built}")
-    st.write(f"**Living Area:** {living_area} sq ft")
-    st.write(f"**Property Type:** {prop_type}")
+        living_area = apt.get("livingArea") or "N/A"
+        st.write(f"**Living Area:** {living_area} sq ft")
 
-    # Commute or distance info (if applicable)
-    distance_transit = apt.get("distance_time_source_transit", "N/A")
-    distance_vehicle = apt.get("distance_time_source_vehicle", "N/A")
-    st.write(f"**Est. Commute (Transit):** {distance_transit}")
-    st.write(f"**Est. Commute (Vehicle):** {distance_vehicle}")
+        distance_transit = apt.get("distance_time_source_transit", "N/A")
+        distance_transit = eval(distance_transit)
+        if isinstance(distance_transit, dict):
+            distance_transit = f'{distance_transit['distance']} miles ({distance_transit['duration']} mins)'
+        st.write(f"**Est. Commute (Transit):** {distance_transit}")
 
-    # Monthly commute cost (if available)
-    monthly_commute_vehicle = apt.get("total_commute_cost_vehicle", "N/A")
-    monthly_commute_transit = apt.get("total_commute_cost_tranist", "N/A")
-    st.write(f"**Monthly Commute Cost (Vehicle):** {monthly_commute_vehicle}")
-    st.write(f"**Monthly Commute Cost (Transit):** {monthly_commute_transit}")
+        monthly_commute_transit = apt.get("total_commute_cost_tranist", "N/A")
+        st.write(f"**Monthly Commute Cost (Transit):** ${round(monthly_commute_transit)}")
 
-    # Scores
-    walk_score = apt.get("walk_score", "N/A")
-    walk_score = walk_score['walkScore']['walkscore'] if isinstance(walk_score, dict) else "N/A"
-    transit_score = apt.get("walk_score", "N/A")
-    transit_score = transit_score['transitScore']['transit_score'] if isinstance(transit_score, dict) else "N/A"
-    safety_score = apt.get("safety_score", "N/A")
-    if isinstance(safety_score, float):
-        safety_score = round(safety_score, 2)*100
+        parking = apt.get("parkingFeatures", "Unknown")
+        if not parking or parking == '{}':
+            parking = "Unknown"
+        if parking != 'Unknown':
+            parking = ', '.join(eval(parking))
+        st.write(f"**Parking:** {parking}")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+        furnished = apt.get("furnished", "False")
+        st.write(f"**Furnished:** {furnished}")
+
+        laundry = apt.get("laundryFeatures", [])
+        if pd.isna(laundry):
+            laundry = []
+        laundry = ', '.join(eval(laundry)) if laundry else "Unknown"
+        st.write(f"**Laundry Features:** {laundry}")
+
+        walkscore = eval(apt.get("walk_score", "N/A"))
+        walk_score = str(walkscore['walkScore']['walkscore']) + "%"  # if isinstance(walk_score, dict) else "N/A"
         st.write(f"**Walk Score:** {walk_score}")
-    with col2:
-        st.write(f"**Transit Score:** {transit_score}")
-    with col3:
+
+    with c2:
+        # Beds / Baths
+        beds = int(apt.get("bedrooms", 1))
+        baths = int(apt.get("bathrooms", 1))
+        st.write(f"**Bedrooms/Bathrooms:** {beds} / {baths}")
+
+        prop_type = apt.get("propertyTypeDimension") or "N/A"
+        st.write(f"**Property Type:** {prop_type}")
+
+        distance_vehicle = apt.get("distance_time_source_vehicle", "N/A")
+        distance_vehicle = eval(distance_vehicle)
+        if isinstance(distance_vehicle, dict):
+            distance_vehicle = f'{distance_vehicle['distance']} miles ({distance_vehicle['duration']} mins)'
+        st.write(f"**Est. Commute (Vehicle):** {distance_vehicle}")
+
+        monthly_commute_vehicle = apt.get("total_commute_cost_vehicle", "N/A")
+        st.write(f"**Monthly Commute Cost (Vehicle):** ${round(monthly_commute_vehicle)}")
+
+        security = apt.get("securityFeatures", "Unknown")
+        if pd.isna(security):
+            security = "Unknown"
+        if security != 'Unknown':
+            security = ', '.join(eval(security))
+        st.write(f"**Security Features:** {security}")
+
+        has_garage = apt.get("hasGarage", "False")
+        st.write(f"**Has Garage:** {has_garage}")
+
+        safety_score = apt.get("safety_score", "N/A")
+        if isinstance(safety_score, float):
+            safety_score = round(safety_score) * 100
+        else:
+            safety_score = eval(schools)
         st.write(f"**Safety Score:** {safety_score}%")
 
-    # Amenities (includes associationAmenities, external features, etc.)
-    amenities = apt.get("associationAmenities", "")
-    exterior = apt.get("exteriorFeatures", "")
-    with st.expander("Amenities & Exterior Features"):
-        if amenities:
-            st.write(f"**Amenities:** {amenities}")
-        if exterior:
-            st.write(f"**Exterior Features:** {exterior}")
+        walkscore = eval(apt.get("walk_score", "N/A"))
+        transit_score = str(walkscore['transitScore']['transit_score'])+"%" #if isinstance(walk_score, dict) else "N/A"
+        st.write(f"**Transit Score:** {transit_score}")
 
-    # Parking and security info
-    parking = apt.get("parkingFeatures", "N/A")
-    security = apt.get("securityFeatures", "N/A")
-    st.write(f"**Parking:** {parking}")
-    st.write(f"**Security Features:** {security}")
-
-    # Other details
-    furnished = apt.get("furnished")
-    has_garage = apt.get("hasGarage")
-    laundry = apt.get("laundryFeatures")
-    st.write(f"**Furnished:** {furnished}")
-    st.write(f"**Has Garage:** {has_garage}")
-    st.write(f"**Laundry Features:** {laundry}")
-
-    # Price history (if any)
-    price_history = apt.get("priceHistory", None)
-    if price_history:
-        with st.expander("Price History"):
-            st.write(price_history)
-
-    # Description
     description = apt.get("description")
     if description:
         with st.expander("Description"):
             st.write(description)
 
-    # Schools
-    schools = apt.get("schools")
-    if schools:
-        with st.expander("Nearby Schools"):
-            st.write(schools)
+    amenities = apt.get("associationAmenities", "Unknown")
+    if pd.isna(amenities):
+        amenities = "Unknown"
+    exterior = apt.get("exteriorFeatures", "Unknown")
+    if not exterior or exterior == '{}':
+        exterior = 'Unknown'
+    if not amenities != 'Unknown' and exterior != 'Unknown':
+        with st.expander("Amenities & Exterior Features"):
+            st.write(f"**Amenities:** {amenities}")
+            exterior = ', '.join(eval(exterior))
+            st.write(f"**Exterior Features:** {exterior}")
 
-    # Mark end of the big dialog
+    schools = apt.get("schools")
+    bus_station = get_nearest_place(apt['latitude'], apt['longitude'], 'bus_station')
+    train_station = get_nearest_place(apt['latitude'], apt['longitude'], 'train_station')
+    restaurant = get_nearest_place(apt['latitude'], apt['longitude'], 'restaurant')
+    pharmacy = get_nearest_place(apt['latitude'], apt['longitude'], 'pharmacy')
+    schools = eval(schools) if schools else schools
+    with st.expander("Nearby Places"):
+        st.markdown(f"🚍 **{bus_station['name']}** {bus_station['address']} ({bus_station['dist']:.2f} miles)")
+        st.markdown(f"🚊 **{train_station['name']}** {train_station['address']} ({train_station['dist']:.2f} miles)")
+        st.markdown(f"🥣 **{restaurant['name']}** {restaurant['address']} ({restaurant['dist']:.2f} miles)")
+        st.markdown(f"💊 **{pharmacy['name']}** {pharmacy['address']} ({pharmacy['dist']:.2f} miles)")
+        st.markdown(f"🏫 [**{schools['name']}**]({schools['link']}) ({schools['distance']:.2f} miles)")
+
+    price_history = apt.get("priceHistory", None)
+    if price_history:
+        price_history = pd.DataFrame(eval(price_history))
+        price_history['date'] = pd.to_datetime(price_history['date'])
+        with st.expander("Price History"):
+            fig = px.line(price_history, x='date', y='price', title='Price Change History')
+            st.plotly_chart(fig)
+
+
+
     st.html("<span class='big-dialog'></span>")
 
 
+apartments = get_apartments(price_range, living_area, bedrooms, bathrooms, primary_location, secondary_location, 
+                   primary_visit_days, secondary_visit_days, commute_time, walking_dist, transport_mode, commute_budget)
+
+col1, col2 = st.columns([1, 1], gap="medium")
 with col1:
     with st.container():
-        folium_obj = get_markers([])
+        folium_obj = get_markers(apartments, transport_mode)
         st_folium(folium_obj, width=500, height=700)
 
 with col2:
-    st.markdown(card_css, unsafe_allow_html=True)
-    apartments = get_apartments(price_range, living_area, bedrooms, bathrooms, primary_location, secondary_location, 
-                   primary_visit_days, secondary_visit_days, commute_time, walking_dist, transport_mode, commute_budget)
-    print(apartments[0]['buildingName'])
-    for i, apt in enumerate(apartments):
-        with st.container():
-            st.html(
-                f"""
-                <div class="card">
-                    <div class="card-content">
-                        <strong>{apt['buildingName']}</strong><br>
-                        {apt['address']}<br>
-                        <strong>Price:</strong> ${int(apt['price'])}/bed
+    if not apartments:
+        st.write('No listings found. Try again with different filters.')
+    else:
+        for i, apt in enumerate(apartments):
+            with st.container():
+                st.html(
+                    f"""
+                    <div class="card">
+                        <div class="card-content">
+                            <strong>{apt['buildingName']}</strong><br>
+                            {apt['address']}<br>
+                            <strong>Price:</strong> ${int(apt['price'])}
+                        </div>
+                        <div class="card-image">
+                            <img src="{apt['imgSrc']}" alt="Apartment Image">
+                        </div>
                     </div>
-                    <div class="card-image">
-                        <img src="{apt['imgSrc']}" alt="Apartment Image">
-                    </div>
-                </div>
-                """
-            )
-            
-            if st.button("Details", key=f"details_{i}"):
-                show_apartment_details(apt)
+                    """
+                )
+                if st.button("Details", key=f"details_{i}"):
+                    show_apartment_details(apt)
 
 
 
