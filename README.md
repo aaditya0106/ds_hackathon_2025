@@ -27,6 +27,7 @@ Assume you work as an FTE at Amazon's Seattle Downtown office and you also atten
 Follow these steps to set up and run the project:
 1. Install dependencies
    `pip install -r requirements.txt`
+   `chmod +x setup.sh && ./setup.sh`
 2. Run the Streamlit Dashboard
    `streamlit run dashboard.py`
 3. Open the browser and navigate to `http://localhost:8501/` to interact with the dashboard.

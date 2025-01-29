@@ -1,0 +1,12 @@
+folium==0.19.4
+h3==3.7.6
+numpy==2.2.2
+pandas==2.2.3
+Pillow==11.1.0
+plotly==5.24.1
+Pyomo==6.8.2
+Requests==2.32.3
+scikit_learn==1.4.2
+Shapely==2.0.6
+streamlit==1.40.2
+streamlit_folium==0.24.0
