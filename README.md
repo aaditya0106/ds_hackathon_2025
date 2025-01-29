@@ -12,7 +12,7 @@ Assume you work as an FTE at Amazon's Seattle Downtown office and you also atten
 - Neighbourhood score
 - Amenities and user preferences
 
-## Data Source
+## 📊 Data Source
 - We sourced our apartment listing and pricing data from [Zillow's API](https://www.zillowgroup.com/developers/public-data/).
 - Places data and insights from [Google Places API](https://developers.google.com/maps/documentation/places/web-service/op-overview) to analyze nearby amenities.
 - Commute distance and time from [Google Distance Matrix API](https://developers.google.com/maps/documentation/distance-matrix/overview) to calculate commute cost and assess travel feasibility.
