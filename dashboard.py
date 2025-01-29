@@ -49,9 +49,9 @@ def _show_apt_img(apt):
         img = img.resize((810, 400))
         st.image(img)
 
-def _show_apt_name(name, url):
-    name = name or "Apartment"
-    url = url or "#"
+def _show_apt_name(apt):
+    name = apt.get("buildingName") or "Apartment"
+    url = apt.get("url") or "#"
     st.markdown(
         f"""
             <h1><a href="https://zillow.com{url}" target="_blank" 
@@ -174,17 +174,22 @@ def _show_amenities(apt):
 
 def _show_nearby_places(apt):
     schools = apt.get("schools")
+    schools = eval(schools) if schools else schools
     bus_station = get_nearest_place(apt['latitude'], apt['longitude'], 'bus_station')
     train_station = get_nearest_place(apt['latitude'], apt['longitude'], 'train_station')
     restaurant = get_nearest_place(apt['latitude'], apt['longitude'], 'restaurant')
     pharmacy = get_nearest_place(apt['latitude'], apt['longitude'], 'pharmacy')
-    schools = eval(schools) if schools else schools
     with st.expander("Nearby Places"):
-        st.markdown(f"🚍 **{bus_station['name']}** {bus_station['address']} ({bus_station['dist']:.2f} miles)")
-        st.markdown(f"🚊 **{train_station['name']}** {train_station['address']} ({train_station['dist']:.2f} miles)")
-        st.markdown(f"🥣 **{restaurant['name']}** {restaurant['address']} ({restaurant['dist']:.2f} miles)")
-        st.markdown(f"💊 **{pharmacy['name']}** {pharmacy['address']} ({pharmacy['dist']:.2f} miles)")
-        st.markdown(f"🏫 [**{schools['name']}**]({schools['link']}) ({schools['distance']:.2f} miles)")
+        if bus_station:
+            st.markdown(f"🚍 **{bus_station['name']}** {bus_station['address']} ({bus_station['dist']:.2f} miles)")
+        if train_station:
+            st.markdown(f"🚊 **{train_station['name']}** {train_station['address']} ({train_station['dist']:.2f} miles)")
+        if restaurant:
+            st.markdown(f"🥣 **{restaurant['name']}** {restaurant['address']} ({restaurant['dist']:.2f} miles)")
+        if pharmacy:
+            st.markdown(f"💊 **{pharmacy['name']}** {pharmacy['address']} ({pharmacy['dist']:.2f} miles)")
+        if schools:
+            st.markdown(f"🏫 [**{schools['name']}**]({schools['link']}) ({schools['distance']:.2f} miles)")
 
 def _show_price_history(apt):
     price_history = apt.get("priceHistory", None)
